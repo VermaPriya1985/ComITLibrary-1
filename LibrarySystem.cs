@@ -1,104 +1,71 @@
 using System;
 using System.Collections.Generic;
 
+using ComitLibrary.Storage;
+using ComitLibrary.Models;
+
 namespace ComitLibrary
 {
 
     public class LibrarySystem
     {
-        // Constructor
-        public LibrarySystem() {
-            // Create an empty list
-            _books = new List<Book>();
-            _patrons = new List<Patron>();
+        /*** CONSTRUCTOR ***/
+        public LibrarySystem(IStoreBooks bookStorage, IStorePatrons patronStorage, IStoreLoans loanStorage) {
+            // Init storage using Dependency Injection
+            _bookStorage = bookStorage;
+            _patronStorage = patronStorage;
+            _loanStorage = loanStorage;
 
             // Create 3 sample books
-            var book1 = new Book(123, "The Hobbit", "Tolkien");
-            var book2 = new Book(999, "Handmaids Tale", "Atwood");
-            var book3 = new Book(76348, "Slaughterhouse five", "Vonnegut");
-
-            // Add sample books to our book collection
-            _books.Add(book1);
-            _books.Add(book2);
-            _books.Add(book3);
+            _bookStorage.Create(new Book(123, "The Hobbit", "Tolkien"));
+            _bookStorage.Create(new Book(999, "Handmaids Tale", "Atwood"));
+            _bookStorage.Create(new Book(76348, "Slaughterhouse five", "Vonnegut"));
 
             // Create 2 sample patrons
-            var patron1 = new Patron(11118888, "Pablo", "Listingart");
-            var patron2 = new Patron(22227777, "Jesselyn", "Popoff");
-
-            // Add sample patrons to our list
-            _patrons.Add(patron1);
-            _patrons.Add(patron2);
+            _patronStorage.Create(new Patron(11118888, "Pablo", "Listingart"));
+            _patronStorage.Create(new Patron(22227777, "Jesselyn", "Popoff"));
         }
 
-        // Data member to represent a collection of books
-        private List<Book> _books;
+        /*** STORAGE ***/
+        private readonly IStoreBooks _bookStorage;
+        private readonly IStorePatrons _patronStorage;
+        private readonly IStoreLoans _loanStorage;
+        
 
-        // Data member to represent all of the library patrons
-        private List<Patron> _patrons;
-
-
-
-        // Search for a book
-        public Book SearchForBook(string titleToSearch) {
-            Console.WriteLine($"Searching for book: {titleToSearch}");
-
-            for (int i = 0; i < _books.Count; i++) {
-                Book nextBook = _books[i];
-                if (nextBook.Title.ToLower() == titleToSearch.ToLower()) {
-                    return nextBook;
-                }
-            }
-            
-            return null; // Null is absence of a book
+        /*** METHODS ***/
+        public List<Book> SearchForBook(string titleToSearch) {
+            return _bookStorage.GetByTitle(titleToSearch);
         }
 
-        // Checkout a book
-        public bool CheckoutBook(long patronId, long bookId) {
-            Console.WriteLine("Checking out a book...");
-
-            bool patronExists = false;
-            bool bookExists = false;
-            bool result = false;
-
-            for (int i = 0; i < _patrons.Count; i++) {
-                var nextPatron = _patrons[i];
-                if (nextPatron.Id == patronId) {
-                    patronExists = true;
-                }
-            }
-
-            // TODO: Handle this!
-            if (!patronExists) {
-                throw new Exception($"Patron {patronId} does not exist!!");
-            }
-
-            for (int i = 0; i < _books.Count; i++) {
-                var nextBook = _books[i];
-                if (nextBook.Id == bookId) {
-                    bookExists = true;
-
-                    if (nextBook.IsCheckedOut) {
-                        result = false;
-                    } else {
-                        result = true;
-                        nextBook.IsCheckedOut = true;
-                    }
-                }
-            }
-
-            // TODO: Handle this!
-            if (!bookExists) {
-                throw new Exception($"Book {bookId} does not exist!!");
-            }
-
-            return result;
+        public List<Book> GetAllBooks() {
+            return _bookStorage.GetAll();
         }
 
-        // Return a book
-        public void ReturnBook() {
-            Console.WriteLine("Returning a book...");
+        public List<Patron> GetAllPatrons() {
+            return _patronStorage.GetAll();
         }
 
+        public Loan CheckoutBook(long patronId, long bookId) {
+            var patron = _patronStorage.GetById(patronId);
+            patron.CheckOutBook();
+
+            var book = _bookStorage.GetById(bookId);
+            book.CheckOut();
+
+            var loan = new Loan(patron, book);
+            _loanStorage.Create(loan);
+            return loan;
+        }
+
+        public void ReturnBook(long patronId, long bookId) {
+            var patron = _patronStorage.GetById(patronId);
+            patron.CheckInBook();
+
+            var book = _bookStorage.GetById(bookId);
+            book.CheckIn();
+
+            var loan = _loanStorage.GetByPatronIdAndBookId(patronId, bookId);
+            loan.IsReturned = true;
+        }
     }
 }
