@@ -41,6 +41,11 @@ namespace ComitLibrary
             return _bookStorage.GetAll();
         }
 
+        public Book AddNewBook(Book newBook) {
+            _bookStorage.Create(newBook);
+            return newBook;
+        }
+
         public List<Patron> GetAllPatrons() {
             return _patronStorage.GetAll();
         }
